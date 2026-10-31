@@ -32,7 +32,7 @@ describe('per-chunk determinism', () => {
     clearElementCache();
     const direct = chunkPrims(SEED, 7);
     clearElementCache();
-    let inOrder = new Uint8Array();
+    let inOrder: Uint8Array = new Uint8Array();
     for (let i = 0; i <= 7; i++) {
       const b = chunkPrims(SEED, i);
       if (i === 7) inOrder = b;

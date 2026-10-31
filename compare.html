@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Inkscroll · port vs original</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <main class="compare">
+      <h1>Seed <span id="seed"></span>: the port's primitives as vectors (top) and the original shan-shui-inf (bottom). <a href="/">Back to the scroll</a></h1>
+      <canvas id="port" role="img" aria-label="Vector render of the ported generators"></canvas>
+      <iframe id="orig" title="shan-shui-inf by Lingdong Huang, same seed"></iframe>
+    </main>
+    <script type="module" src="/src/pages/compare.ts"></script>
+  </body>
+</html>
