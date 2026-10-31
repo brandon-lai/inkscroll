@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Inkscroll · a painting that never ends, written in text</title>
+    <meta name="description" content="An endless Chinese landscape scroll drawn entirely in monospace characters. Landscape generator after shan-shui-inf by Lingdong Huang." />
+    <meta name="theme-color" content="#F3EEE3" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href="/fonts/jetbrains-mono-subset.woff2" as="font" type="font/woff2" crossorigin />
+    <meta property="og:title" content="Inkscroll" />
+    <meta property="og:description" content="A painting that never ends, written in text." />
+  </head>
+  <body>
+    <main id="stage" aria-describedby="about"></main>
+    <p id="about" class="visually-hidden">
+      A slowly drifting landscape of mountains, mist, water, trees and small figures, drawn in text characters.
+      Scroll or drag to move along it. Space toggles drift, N paints a new landscape, S saves the view as text and an image.
+    </p>
+    <div id="ui"></div>
+    <noscript><p class="noscript">This painting is drawn with JavaScript.</p></noscript>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

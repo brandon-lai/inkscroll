@@ -1,0 +1,20 @@
+{
+  "name": "inkscroll",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit -p . && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "ascii": "tsx scripts/ascii.ts"
+  },
+  "description": "An endless Chinese landscape scroll drawn in monospace characters",
+  "devDependencies": {
+    "tsx": "4.23.15",
+    "typescript": "7.0.2",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
+  },
+  "private": true,
+  "type": "module"
+}

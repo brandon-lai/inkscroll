@@ -1,0 +1,188 @@
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/fonts/jetbrains-mono-subset.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
+/* Paper only: the painting has one identity (see README, open questions). */
+:root {
+  --paper: #f3eee3;
+  --ink: #2b2926;
+  --ink-soft: #57524b;
+  --seal: #b8352a;
+  --mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--mono);
+  overscroll-behavior: none;
+}
+
+#stage {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+#stage.dragging {
+  cursor: grabbing;
+}
+
+.layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  will-change: transform;
+  image-rendering: pixelated;
+}
+.layer-overlay {
+  pointer-events: none;
+}
+
+.bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15rem 0.6rem;
+  padding: 0.45rem 1rem calc(0.45rem + env(safe-area-inset-bottom));
+  font: 12px/1.5 var(--mono);
+  color: var(--ink-soft);
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  transition: opacity 0.6s ease;
+  z-index: 2;
+}
+.bar.idle {
+  opacity: 0;
+}
+.bar button {
+  font: inherit;
+  color: var(--ink);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  padding: 0.1rem 0.35rem;
+  min-height: 24px;
+  cursor: pointer;
+}
+.bar button:hover {
+  border-color: color-mix(in srgb, var(--ink) 30%, transparent);
+}
+.bar button:focus-visible,
+.bar a:focus-visible {
+  outline: 2px solid var(--seal);
+  outline-offset: 2px;
+}
+.bar a {
+  color: var(--ink);
+}
+.bar-seed-value {
+  color: var(--ink);
+}
+.bar-credit {
+  margin-left: auto;
+}
+
+.seal {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 3rem;
+  margin: 0;
+  padding: 0.2rem 0.3rem;
+  font: 13px/1.15 var(--mono);
+  white-space: pre;
+  color: var(--seal);
+  opacity: 0;
+  transform: scale(1.18) rotate(-2deg);
+  transition:
+    opacity 0.7s ease,
+    transform 0.7s cubic-bezier(0.2, 0.8, 0.3, 1);
+  pointer-events: none;
+  z-index: 1;
+}
+.seal.settled {
+  opacity: 0.92;
+  transform: scale(1) rotate(-2deg);
+}
+
+.debug {
+  position: fixed;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 280px;
+  max-height: calc(100% - 4rem);
+  overflow: auto;
+  padding: 0.5rem 0.6rem;
+  font: 11px/1.4 var(--mono);
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  z-index: 3;
+}
+.debug-row label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+}
+.debug-row input[type='range'] {
+  width: 100%;
+}
+.debug-stats {
+  white-space: pre;
+  margin: 0.3rem 0;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.noscript {
+  padding: 2rem;
+}
+
+@media (max-width: 640px) {
+  .bar {
+    font-size: 11px;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .bar-credit {
+    margin-left: 0;
+    flex-basis: 100%;
+  }
+  .seal {
+    bottom: 4.6rem;
+    right: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar,
+  .seal {
+    transition: none;
+  }
+}
