@@ -10,7 +10,7 @@ you watch.
 Landscape generator after [shan-shui-inf](https://github.com/LingDong-/shan-shui-inf)
 by Lingdong Huang (MIT; see `THIRD_PARTY_LICENSES.md`).
 
-- Live: https://inkscroll.vercel.app
+- Live: https://ink-scroll.vercel.app
 - Five seeds side by side: `/seeds.html`
 - The port's geometry beside the original: `/compare.html?seed=123456`
 - Tuning panel and overlays: `/?debug=1`
@@ -98,7 +98,7 @@ npm run ascii -- 123456 0 2         # print chunks as text in the terminal
 
 ## Decisions
 
-**Name: Inkscroll** (`inkscroll.vercel.app`). "Ink and Characters" was the
+**Name: Inkscroll** (`ink-scroll.vercel.app`; `inkscroll.vercel.app` already belongs to an unrelated site). "Ink and Characters" was the
 working title. The product is an endless scroll in ink, and one short word
 makes a clean repo, domain and seal.
 
@@ -136,7 +136,7 @@ bottom. The peaks stay in view.
 
 ## Open questions, answered
 
-- **Name and domain.** Inkscroll, at inkscroll.vercel.app (above). A custom
+- **Name and domain.** Inkscroll, at ink-scroll.vercel.app (above). A custom
   domain is Brandon's call.
 - **Standalone or a section/background of another site?** Standalone, so
   the bar and keyboard shortcuts exist. To use it as a background later:
