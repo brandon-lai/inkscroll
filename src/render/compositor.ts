@@ -129,7 +129,10 @@ export class Compositor {
       cellH = ch / dpr;
     this.cols = Math.ceil(cssW / cellW) + 1;
     this.rows = Math.ceil(cssH / cellH);
-    this.rowOffset = config.worldRows - this.rows;
+    // Short screens (a phone on its side) cannot show every world row. Peaks
+    // matter more than the open water at the bottom, so crop mostly from below.
+    const extra = config.worldRows - this.rows;
+    this.rowOffset = extra > 0 ? Math.round(extra * 0.4) : extra;
     this.top = cssH - this.rows * cellH;
     if (changed) this.atlas = buildAtlas(cw, ch, glyphChars);
     for (const L of [...this.layers]) {
