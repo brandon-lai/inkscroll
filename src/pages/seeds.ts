@@ -9,7 +9,7 @@ const x = Number(params.get('x') ?? 2000);
 const root = document.getElementById('sheet')!;
 
 (async () => {
-  await document.fonts.load('16px "JetBrains Mono"');
+  await Promise.all([document.fonts.load('16px "JetBrains Mono"'), document.fonts.load('700 16px "JetBrains Mono"')]);
   for (const seed of seeds) {
     const fig = document.createElement('figure');
     const canvas = document.createElement('canvas');

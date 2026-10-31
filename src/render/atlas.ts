@@ -3,6 +3,9 @@
 
 import { EXTRA_GLYPHS, INK, PAPER, TONE_ALPHA } from '../config';
 
+/** Tone steps from here up use the bold weight. */
+export const BOLD_FROM = 5;
+
 export const FONT_FAMILY = '"JetBrains Mono", ui-monospace, Menlo, monospace';
 
 export interface Atlas {
@@ -40,7 +43,7 @@ export function buildAtlas(cw: number, ch: number, glyphChars: string[]): Atlas 
   const ctx = canvas.getContext('2d')!;
   ctx.fillStyle = PAPER;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.font = `${fontPx(cw, ch)}px ${FONT_FAMILY}`;
+  const px = fontPx(cw, ch);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = INK;
@@ -48,6 +51,8 @@ export function buildAtlas(cw: number, ch: number, glyphChars: string[]): Atlas 
   glyphs.forEach((g, i) => {
     slot[g] = i;
     for (let t = 0; t < tones; t++) {
+      // Darkest steps switch to the bold cut, like a brush pressed harder.
+      ctx.font = `${t >= BOLD_FROM ? 700 : 400} ${px}px ${FONT_FAMILY}`;
       ctx.globalAlpha = TONE_ALPHA[t];
       drawGlyph(ctx, glyphChars[g], i * cw, t * ch, cw, ch);
     }

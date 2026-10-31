@@ -53,7 +53,7 @@ export const config = {
   /** Contour glyphs need this many continuing neighbours along the line. */
   edgeLinks: 2,
   /** Tone floor for contour glyphs (0..1), so lines read over tone. */
-  lineTone: 0.5,
+  lineTone: 0.6,
   /** Lighter ink with distance: tone scales from depthFade at depthFar to 1 at depthNear (world y). */
   depthFar: 300,
   depthNear: 680,
@@ -156,7 +156,7 @@ export const PAPER = '#F3EEE3';
 export const INK = '#2B2926';
 export const SEAL = '#B8352A';
 /** Opacity of the ink at each tone step, lightest to darkest. */
-export const TONE_ALPHA = [0.13, 0.22, 0.32, 0.43, 0.55, 0.67, 0.8, 0.94];
+export const TONE_ALPHA = [0.15, 0.25, 0.36, 0.48, 0.6, 0.66, 0.78, 0.92];
 
 // --- character sets -----------------------------------------------------------
 // Glyph indices are char codes for printable ASCII; the few non-ASCII glyphs

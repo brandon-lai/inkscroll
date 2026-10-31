@@ -39,7 +39,7 @@ const ui = document.getElementById('ui')!;
 async function boot(): Promise<void> {
   // The atlas must not be built with a fallback font.
   try {
-    await document.fonts.load('16px "JetBrains Mono"');
+    await Promise.all([document.fonts.load('16px "JetBrains Mono"'), document.fonts.load('700 16px "JetBrains Mono"')]);
     await document.fonts.ready;
   } catch {
     /* render with the fallback rather than not at all */
