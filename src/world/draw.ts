@@ -305,9 +305,15 @@ export function stroke(
   const vtxlist0: Pt[] = [];
   const vtxlist1: Pt[] = [];
   const n0 = rand() * 10;
+  // The original fills this outline and also strokes it `out` wide in the
+  // same colour. Widening each side by out/2 is the same shape without a
+  // second rasterising pass (only the tips differ, by half a unit), and it
+  // halves the rasteriser's time.
+  const grow = out / 2;
   for (let i = 1; i < ptlist.length - 1; i++) {
     let w = wid * fun(i / ptlist.length);
     w = w * (1 - noi) + w * noi * noise(i * 0.5, n0);
+    w = w < 0 ? w - grow : w + grow;
     const a1 = Math.atan2(ptlist[i][1] - ptlist[i - 1][1], ptlist[i][0] - ptlist[i - 1][0]);
     const a2 = Math.atan2(ptlist[i][1] - ptlist[i + 1][1], ptlist[i][0] - ptlist[i + 1][0]);
     let a = (a1 + a2) / 2;
@@ -320,7 +326,7 @@ export function stroke(
     .concat([ptlist[0]]);
   poly(
     vtxlist.map((x) => [x[0] + xof, x[1] + yof] as Pt),
-    { fil: col, str: col, wid: out },
+    { fil: col, str: col, wid: 0 },
   );
   emitLine(ptlist, xof, yof);
 }

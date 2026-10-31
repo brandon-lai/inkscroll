@@ -28,17 +28,20 @@ export interface CellMaps {
 export const FLAG_OPAQUE = 1;
 export const FLAG_CONTOUR = 2;
 
-/** Edge direction bins: 0 horizontal, 1 rising (/), 2 vertical, 3 falling (\). */
+const TAN30 = Math.tan(Math.PI / 6);
+const TAN70 = Math.tan((70 * Math.PI) / 180);
+
+/**
+ * Edge direction bins: 0 horizontal, 1 rising (/), 2 vertical, 3 falling (\).
+ * The edge runs perpendicular to the gradient, so its angle (y up, folded to
+ * 0..180) has tangent gx/gy; comparing ratios avoids an atan2 per sample.
+ */
 function dirBin(gx: number, gy: number): number {
-  // Edge tangent is the gradient turned 90 degrees; measure its angle with
-  // y up (screen y runs down), folded to 0..180.
-  let a = (Math.atan2(-gx, -gy) * 180) / Math.PI;
-  if (a < 0) a += 180;
-  if (a >= 180) a -= 180;
-  if (a < 30 || a >= 150) return 0;
-  if (a < 70) return 1;
-  if (a < 110) return 2;
-  return 3;
+  const ax = gx < 0 ? -gx : gx,
+    ay = gy < 0 ? -gy : gy;
+  if (ax < TAN30 * ay) return 0;
+  if (ax > TAN70 * ay) return 2;
+  return gx * gy > 0 ? 1 : 3;
 }
 
 /** Bin a line direction (radians, [0, pi), y up) like dirBin does for gradients. */
@@ -79,7 +82,22 @@ export function mapCells(r: Raster, cols: number, rows: number, sx: number, sy: 
   const kx = 1 / (8 * r.dx),
     ky = 1 / (8 * r.dy);
   for (let j = 0; j < H; j++) {
+    const interiorRow = j > 0 && j < H - 1;
     for (let i = 0; i < W; i++) {
+      if (interiorRow && i > 0 && i < W - 1) {
+        const o = j * W + i;
+        const a = ink[o - W - 1],
+          b = ink[o - W],
+          c = ink[o - W + 1],
+          d = ink[o - 1],
+          f = ink[o + 1],
+          g = ink[o + W - 1],
+          h = ink[o + W],
+          k = ink[o + W + 1];
+        gx[o] = (c + 2 * f + k - (a + 2 * d + g)) * kx;
+        gy[o] = (g + 2 * h + k - (a + 2 * b + c)) * ky;
+        continue;
+      }
       const a = at(i - 1, j - 1),
         b = at(i, j - 1),
         c = at(i + 1, j - 1),
@@ -94,6 +112,7 @@ export function mapCells(r: Raster, cols: number, rows: number, sx: number, sy: 
   }
 
   const ns = sx * sy;
+  const edgeMag2 = cfg.edgeMag * cfg.edgeMag;
   const tones = cfg.tones;
   const toneOf = (v: number) => Math.max(0, Math.min(tones - 1, Math.round(v * opts.toneScale * (tones - 1))));
 
@@ -154,8 +173,9 @@ export function mapCells(r: Raster, cols: number, rows: number, sx: number, sy: 
           }
           const ggx = gx[idx],
             ggy = gy[idx];
-          const mag = Math.sqrt(ggx * ggx + ggy * ggy);
-          if (mag > cfg.edgeMag) {
+          const mag2 = ggx * ggx + ggy * ggy;
+          if (mag2 > edgeMag2) {
+            const mag = Math.sqrt(mag2);
             const b = dirBin(ggx, ggy);
             bins[b]++;
             binS[b] += mag;

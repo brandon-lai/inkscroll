@@ -131,35 +131,51 @@ export function rasterize(prims: Primitive[], x0: number, y0: number, w: number,
 
 // Scratch for the scanline filler, grown as needed.
 let edgeBuf = new Float64Array(5 * 256);
+let order = new Int32Array(256);
+let active = new Int32Array(256);
 let xsBuf = new Float64Array(256);
 let dirBuf = new Int8Array(256);
 
-/** Nonzero-winding polygon fill at sample centres (SVG's default fill rule). */
+/**
+ * Nonzero-winding polygon fill at sample centres (SVG's default fill rule),
+ * with an active edge table: edges sorted by top row join the active list as
+ * the scan reaches them and leave when it passes their bottom.
+ */
 function fillSpans(pts: Float32Array, r: Raster, touch: (idx: number, c: number) => void): void {
   const np = pts.length >> 1;
-  if (edgeBuf.length < np * 5) edgeBuf = new Float64Array(np * 10);
+  if (edgeBuf.length < np * 5) {
+    edgeBuf = new Float64Array(np * 10);
+    order = new Int32Array(np * 2);
+    active = new Int32Array(np * 2);
+    xsBuf = new Float64Array(np * 2);
+    dirBuf = new Int8Array(np * 2);
+  }
   // Edges in sample space (sample centres at integer coordinates):
   // [ytop, ybot, x at ytop, dx/dy, dir]
   let ne = 0;
   let jmin = Infinity,
     jmax = -Infinity;
+  const ix = 1 / r.dx,
+    iy = 1 / r.dy;
   for (let k = 0; k < np; k++) {
-    const k2 = (k + 1) % np;
-    const ax = (pts[k * 2] - r.x0) / r.dx - 0.5;
-    const ay = (pts[k * 2 + 1] - r.y0) / r.dy - 0.5;
-    const bx = (pts[k2 * 2] - r.x0) / r.dx - 0.5;
-    const by = (pts[k2 * 2 + 1] - r.y0) / r.dy - 0.5;
-    if (ay === by || !(Number.isFinite(ay) && Number.isFinite(by) && Number.isFinite(ax) && Number.isFinite(bx))) continue;
+    const k2 = k + 1 === np ? 0 : k + 1;
+    const ax = (pts[k * 2] - r.x0) * ix - 0.5;
+    const ay = (pts[k * 2 + 1] - r.y0) * iy - 0.5;
+    const bx = (pts[k2 * 2] - r.x0) * ix - 0.5;
+    const by = (pts[k2 * 2 + 1] - r.y0) * iy - 0.5;
+    if (ay === by || !(ay === ay && by === by && ax === ax && bx === bx)) continue;
     const down = by > ay;
     const ytop = down ? ay : by;
     const ybot = down ? by : ay;
-    const xtop = down ? ax : bx;
+    // Edges entirely between two sample rows never cross one.
+    if (Math.ceil(ytop) >= Math.ceil(ybot)) continue;
     const e = ne * 5;
     edgeBuf[e] = ytop;
     edgeBuf[e + 1] = ybot;
-    edgeBuf[e + 2] = xtop;
+    edgeBuf[e + 2] = down ? ax : bx;
     edgeBuf[e + 3] = (bx - ax) / (by - ay);
     edgeBuf[e + 4] = down ? 1 : -1;
+    order[ne] = ne;
     ne++;
     if (ytop < jmin) jmin = ytop;
     if (ybot > jmax) jmax = ybot;
@@ -167,27 +183,41 @@ function fillSpans(pts: Float32Array, r: Raster, touch: (idx: number, c: number)
   if (ne < 2) return;
   const j0 = Math.max(0, Math.ceil(jmin));
   const j1 = Math.min(r.h - 1, Math.ceil(jmax) - 1);
-  if (xsBuf.length < ne) {
-    xsBuf = new Float64Array(ne * 2);
-    dirBuf = new Int8Array(ne * 2);
-  }
-  for (let j = j0; j <= j1; j++) {
-    // Crossings of this sample row (half-open [ytop, ybot) avoids double hits at vertices).
-    let nc = 0;
-    for (let e = 0; e < ne * 5; e += 5) {
-      if (edgeBuf[e] <= j && j < edgeBuf[e + 1]) {
-        const x = edgeBuf[e + 2] + (j - edgeBuf[e]) * edgeBuf[e + 3];
-        // insertion sort by x
-        let q = nc++;
-        while (q > 0 && xsBuf[q - 1] > x) {
-          xsBuf[q] = xsBuf[q - 1];
-          dirBuf[q] = dirBuf[q - 1];
-          q--;
-        }
-        xsBuf[q] = x;
-        dirBuf[q] = edgeBuf[e + 4];
-      }
+  if (j0 > j1) return;
+  // Sort edge indices by top (insertion sort; polygons are small).
+  for (let a = 1; a < ne; a++) {
+    const v = order[a];
+    const key = edgeBuf[v * 5];
+    let b = a - 1;
+    while (b >= 0 && edgeBuf[order[b] * 5] > key) {
+      order[b + 1] = order[b];
+      b--;
     }
+    order[b + 1] = v;
+  }
+  let next = 0;
+  let na = 0;
+  // Skip edges that end above the first visible row.
+  for (let j = j0; j <= j1; j++) {
+    while (next < ne && edgeBuf[order[next] * 5] <= j) active[na++] = order[next++];
+    // Crossings of this row (half-open [ytop, ybot) avoids double hits at vertices).
+    let nc = 0;
+    let w = 0;
+    for (let q = 0; q < na; q++) {
+      const e = active[q] * 5;
+      if (edgeBuf[e + 1] <= j) continue; // finished: drop
+      active[w++] = active[q];
+      const x = edgeBuf[e + 2] + (j - edgeBuf[e]) * edgeBuf[e + 3];
+      let z = nc++;
+      while (z > 0 && xsBuf[z - 1] > x) {
+        xsBuf[z] = xsBuf[z - 1];
+        dirBuf[z] = dirBuf[z - 1];
+        z--;
+      }
+      xsBuf[z] = x;
+      dirBuf[z] = edgeBuf[e + 4];
+    }
+    na = w;
     let wind = 0;
     const row = j * r.w;
     for (let q = 0; q < nc - 1; q++) {

@@ -16,7 +16,17 @@ const perlin_amp_falloff = 0.5;
 let perlin = new Float64Array(PERLIN_SIZE + 1);
 let tableSeed = NaN;
 
-const scaled_cosine = (i: number) => 0.5 * (1.0 - Math.cos(i * Math.PI));
+// scaled_cosine(i) = 0.5 * (1 - cos(i * pi)) for i in [0, 1). It runs twelve
+// times per noise call and noise is a third of chunk build time, so read it
+// from an interpolated table (error under 1e-7) instead of calling cos.
+const COS_N = 4096;
+const COS_TAB = new Float64Array(COS_N + 2);
+for (let i = 0; i <= COS_N + 1; i++) COS_TAB[i] = 0.5 * (1.0 - Math.cos((i / COS_N) * Math.PI));
+const scaled_cosine = (i: number) => {
+  const t = i * COS_N;
+  const k = t | 0;
+  return COS_TAB[k] + (COS_TAB[k + 1] - COS_TAB[k]) * (t - k);
+};
 
 /** Noise.noiseSeed: refill the table for a world seed (no-op if already set). */
 export function noiseSeed(seed: number): void {

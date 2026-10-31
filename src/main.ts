@@ -181,6 +181,7 @@ async function boot(): Promise<void> {
     if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
       const d = e.key === 'ArrowRight' ? 1 : -1;
       if (!e.repeat) {
+        vel = 0;
         pending += d * config.arrowStep;
         arrowDir = d;
         arrowSince = performance.now();
