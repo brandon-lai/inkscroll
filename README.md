@@ -73,16 +73,18 @@ main:    chunk cache -> compositor (+ motion overlays) -> two canvases
 
 | Check | Target | Measured |
 | --- | --- | --- |
-| Chunk build in worker (mean, browser) | < 60 ms | ~47–57 ms (Node: 48 ms foreground) |
-| Main-thread frame work while fast-scrolling, p95 | < 16 ms | ~1 ms (headless Chrome) |
-| Blank columns during 60 s fast scroll each way | 0 | 0 |
+| Chunk build in worker (mean, browser) | < 60 ms | 43–53 ms (max ~220 ms: a worker's first chunk) |
+| Main-thread frame work while fast-scrolling, p95 | < 16 ms | ~2 ms (headless Chrome) |
+| Blank columns during 60 s fast scroll each way (~1,400 units/s) | 0 | 0 |
 | Cells changing per second at rest | < 3% | ~0.3% mean, ~0.5% worst |
 | JS gzipped, main page incl. worker | < 80 KB | ~32 KB |
 | Chunk cache | < 30 MB | ~1.3 MB |
 | Lighthouse accessibility | ≥ 95 | 100 (performance 100, best practices 100) |
 
-Frame timings come from headless Chrome on an M-series Mac. The PRD asks
-for the Performance panel on a MacBook Air; that's a manual check.
+Frame timings come from headless Chrome on an M-series Mac. Headless Chrome
+paced rAF at 30 Hz during the long runs, so the figure is the work done per
+frame, not a measured 60 fps. The PRD asks for the Performance panel on a
+MacBook Air; that's a manual check.
 
 ## Develop
 
