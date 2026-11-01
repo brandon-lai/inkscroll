@@ -7,7 +7,9 @@
 //     the mountains of the chunks within reach on both sides, not from history;
 //   - flat mounts and boats use their own streams.
 
-import { chunkWidthUnits, type Config, config as liveConfig } from '../config';
+import { chunkWidthUnits, config as liveConfig } from '../config';
+
+type PlanConfig = { chunkPx: number; unitsPerPx: number };
 import { collect } from './draw';
 import { distMount } from './generators/distMount';
 import { flatMount } from './generators/flatMount';
@@ -104,7 +106,7 @@ function mountsOf(seed: number, c: number, cw: number): Reg[] {
 const planMemo = new Map<string, Placement[]>();
 
 /** Everything one foreground plan chunk places, in the original's order. */
-export function planChunk(seed: number, c: number, cfg: Config = liveConfig): Placement[] {
+export function planChunk(seed: number, c: number, cfg: PlanConfig = liveConfig): Placement[] {
   const cw = chunkWidthUnits(cfg);
   const key = `${seed}:${c}:${cw}`;
   const hit = planMemo.get(key);
@@ -141,7 +143,7 @@ export function planChunk(seed: number, c: number, cfg: Config = liveConfig): Pl
 }
 
 /** Background plan chunk: a far range every 1000 units (distmount in mountplanner). */
-export function planBackground(seed: number, c: number, cfg: Config = liveConfig): Placement[] {
+export function planBackground(seed: number, c: number, cfg: PlanConfig = liveConfig): Placement[] {
   const cw = chunkWidthUnits(cfg);
   const out: Placement[] = [];
   for (let i = Math.ceil((c * cw) / 1000) * 1000; i < (c + 1) * cw; i += 1000) {

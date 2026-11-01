@@ -28,12 +28,5 @@ self.onmessage = (e: MessageEvent<BuildRequest | { type: 'reset' }>) => {
     lastCfgKey = key;
   }
   const grid = buildChunk(msg.seed, msg.layer, msg.index, msg.cfg, msg.version);
-  (self as unknown as Worker).postMessage({ type: 'chunk', id: msg.id, grid }, [
-    grid.glyph.buffer,
-    grid.tone.buffer,
-    grid.material.buffer,
-    grid.ink.buffer,
-    grid.depth.buffer,
-    grid.flags.buffer,
-  ]);
+  (self as unknown as Worker).postMessage({ type: 'chunk', id: msg.id, grid }, [grid.px.buffer, grid.depth.buffer]);
 };

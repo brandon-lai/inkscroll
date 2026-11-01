@@ -3,17 +3,9 @@
   src: url('/fonts/jetbrains-mono-subset.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
-  font-display: block;
-}
-@font-face {
-  font-family: 'JetBrains Mono';
-  src: url('/fonts/jetbrains-mono-bold-subset.woff2') format('woff2');
-  font-weight: 700;
-  font-style: normal;
-  font-display: block;
+  font-display: swap;
 }
 
-/* Paper only: the painting has one identity (see README, open questions). */
 :root {
   --paper: #f3eee3;
   --ink: #2b2926;
@@ -32,7 +24,7 @@ body {
   margin: 0;
   height: 100%;
   overflow: hidden;
-  background: var(--paper);
+  background: #1d475b;
   color: var(--ink);
   font-family: var(--mono);
   overscroll-behavior: none;
@@ -51,15 +43,12 @@ body {
   cursor: grabbing;
 }
 
-.layer {
+.scene {
   position: absolute;
   left: 0;
   top: 0;
-  will-change: transform;
   image-rendering: pixelated;
-}
-.layer-overlay {
-  pointer-events: none;
+  image-rendering: crisp-edges;
 }
 
 .bar {
@@ -74,7 +63,7 @@ body {
   padding: 0.45rem 1rem calc(0.45rem + env(safe-area-inset-bottom));
   font: 12px/1.5 var(--mono);
   color: var(--ink-soft);
-  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  background: color-mix(in srgb, var(--paper) 90%, transparent);
   transition: opacity 0.6s ease;
   z-index: 2;
 }
@@ -118,6 +107,7 @@ body {
   font: 13px/1.15 var(--mono);
   white-space: pre;
   color: var(--seal);
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
   opacity: 0;
   transform: scale(1.18) rotate(-2deg);
   transition:

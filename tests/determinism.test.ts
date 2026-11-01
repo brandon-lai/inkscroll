@@ -57,7 +57,7 @@ describe('per-chunk determinism', () => {
   it('scrolling left then right regenerates identical chunks after eviction', () => {
     const grids = (i: number) => {
       const g = buildChunk(SEED, 'foreground', i, cfg);
-      return Buffer.concat([g.glyph, g.tone, g.material, g.flags].map((a) => Buffer.from(a.buffer, a.byteOffset, a.byteLength)));
+      return Buffer.concat([g.px, g.depth].map((a) => Buffer.from(a.buffer, a.byteOffset, a.byteLength)));
     };
     clearElementCache();
     const before = [2, 3, 4].map(grids);
@@ -72,19 +72,19 @@ describe('per-chunk determinism', () => {
     const a = buildChunk(SEED, 'background', 5, cfg);
     clearElementCache();
     const b = buildChunk(SEED, 'background', 5, cfg);
-    expect(Buffer.from(a.glyph).equals(Buffer.from(b.glyph))).toBe(true);
+    expect(Buffer.from(a.px).equals(Buffer.from(b.px))).toBe(true);
   });
 
   it('different seeds give different worlds', () => {
     const a = buildChunk(1, 'foreground', 0, cfg);
     const b = buildChunk(2, 'foreground', 0, cfg);
-    expect(Buffer.from(a.glyph).equals(Buffer.from(b.glyph))).toBe(false);
+    expect(Buffer.from(a.px).equals(Buffer.from(b.px))).toBe(false);
   });
 
   it('negative chunks work (the scroll is infinite in both directions)', () => {
     const g = buildChunk(SEED, 'foreground', -37, cfg);
     let inked = 0;
-    for (const v of g.glyph) if (v !== 32) inked++;
+    for (const v of g.px) if (v !== 0) inked++;
     expect(inked).toBeGreaterThan(50);
   });
 });

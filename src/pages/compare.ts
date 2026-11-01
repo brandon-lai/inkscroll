@@ -38,7 +38,7 @@ noiseSeed(seed);
 worldOptions.whimsy = params.get('whimsy') === '1';
 const cfg = buildConfig(config);
 const draw = (layer: 'background' | 'foreground', shift: number) => {
-  const cw = config.chunkCols * ((config.unitsPerRow * config.cell.w) / config.cell.h);
+  const cw = config.chunkPx * config.unitsPerPx;
   const els = [];
   for (let c = Math.floor((x0 + shift) / cw) - 1; c <= Math.ceil((x0 + shift + width) / cw); c++) els.push(...elementsFor(seed, layer, c, c * cw, (c + 1) * cw, cfg));
   const uniq = [...new Map(els.map((e) => [`${e.placement.tag}${e.placement.chunk}:${e.placement.idx}`, e])).values()];

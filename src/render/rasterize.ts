@@ -11,7 +11,7 @@
 // most once, so self-overlapping outlines do not double their alpha the way
 // they would if drawn segment by segment.
 
-import type { Primitive } from '../world/primitives';
+import { MAT, type Primitive } from '../world/primitives';
 
 export interface Raster {
   /** Samples across and down. */
@@ -34,6 +34,8 @@ export interface Raster {
   line: Float32Array;
   /** Direction of that line at the sample, radians folded to [0, pi), screen y down. */
   lineAng: Float32Array;
+  /** How much mist lies over the sample, 0..1. Mist does not claim material or depth. */
+  mist: Float32Array;
 }
 
 /** Below this alpha a primitive does not claim the sample's material. */
@@ -56,6 +58,7 @@ export function rasterize(prims: Primitive[], x0: number, y0: number, w: number,
     depth: new Float32Array(n).fill(-Infinity),
     line: new Float32Array(n),
     lineAng: new Float32Array(n),
+    mist: new Float32Array(n),
   };
   const cov = new Float32Array(n);
   let touched = new Int32Array(4096);
@@ -113,17 +116,26 @@ export function rasterize(prims: Primitive[], x0: number, y0: number, w: number,
       alpha = p.alpha,
       mat = p.material,
       depth = p.depth;
+    const isMist = mat === MAT.mist;
     for (let t = 0; t < nt; t++) {
       const idx = touched[t];
       const a = alpha * cov[idx];
       cov[idx] = 0;
       if (a <= 0) continue;
       r.ink[idx] = r.ink[idx] * (1 - a) + ink * a;
+      if (isMist) {
+        r.mist[idx] += a * (1 - r.mist[idx]);
+        r.line[idx] *= 1 - a;
+        continue;
+      }
       r.opa[idx] = r.opa[idx] + a * (1 - r.opa[idx]);
       if (a >= MATERIAL_ALPHA) r.mat[idx] = mat;
       if (a >= DEPTH_ALPHA) r.depth[idx] = depth;
       // Paper-coloured fills and dense ink cover the lines beneath them.
-      if (occludes) r.line[idx] *= 1 - a;
+      if (occludes) {
+        r.line[idx] *= 1 - a;
+        r.mist[idx] *= 1 - a; // nearer paint covers farther mist
+      }
     }
   }
   return r;

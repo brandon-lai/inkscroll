@@ -7,12 +7,14 @@ export interface BarHandlers {
   toggleDrift(): void;
   newPainting(): void;
   save(): void;
+  nextTime(): void;
 }
 
 export class Bar {
   readonly el: HTMLElement;
   private seedEl: HTMLElement;
   private driftBtn: HTMLButtonElement;
+  private timeBtn!: HTMLButtonElement;
   private timer = 0;
 
   constructor(parent: HTMLElement, h: BarHandlers) {
@@ -22,6 +24,7 @@ export class Bar {
       <span class="bar-seed">seed <span class="bar-seed-value"></span></span>
       <span class="bar-sep" aria-hidden="true">·</span>
       <button type="button" class="bar-drift" aria-pressed="true" aria-keyshortcuts="Space">drift: on</button>
+      <button type="button" class="bar-time" aria-keyshortcuts="T" title="Skip ahead to the next part of the day (T)">golden hour</button>
       <button type="button" class="bar-new" aria-keyshortcuts="N">new</button>
       <button type="button" class="bar-save" aria-keyshortcuts="S">save</button>
       <span class="bar-sep" aria-hidden="true">·</span>
@@ -31,6 +34,8 @@ export class Bar {
     this.driftBtn = this.el.querySelector('.bar-drift')!;
     this.driftBtn.addEventListener('click', () => h.toggleDrift());
     this.el.querySelector('.bar-new')!.addEventListener('click', () => h.newPainting());
+    this.timeBtn = this.el.querySelector('.bar-time')!;
+    this.timeBtn.addEventListener('click', () => h.nextTime());
     this.el.querySelector('.bar-save')!.addEventListener('click', () => h.save());
     this.el.addEventListener('focusin', () => this.wake());
     this.el.addEventListener('pointerenter', () => this.wake());
@@ -44,6 +49,11 @@ export class Bar {
   setDrift(on: boolean): void {
     this.driftBtn.textContent = `drift: ${on ? 'on' : 'off'}`;
     this.driftBtn.setAttribute('aria-pressed', String(on));
+  }
+
+  setTime(phase: string): void {
+    this.timeBtn.textContent = `${phase} ▸`;
+    this.timeBtn.setAttribute('aria-label', `Time of day: ${phase}. Skip ahead`);
   }
 
   /** Show the bar and restart the idle timer. */

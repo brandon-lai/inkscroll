@@ -352,6 +352,8 @@ export function arch02(
     roof(xoff, yoff - hoff - hei, { hei, wid: wid * Math.pow(0.9, i), rot, wei: 1.5, per, pla });
     hoff += hei * 1.5;
   }
+  // Not in the original: a chimney point for smoke (drawn after, so the stream is unchanged).
+  if (rand() < 0.55) emitSprite({ kind: 'smoke', variant: 0, x: xoff + (rand() - 0.5) * wid * 0.4, y: yoff - hoff + hei * 0.5, flip: false });
   void seed;
 }
 

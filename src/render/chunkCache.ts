@@ -67,7 +67,7 @@ export class ChunkCache {
 
   bytes(): number {
     let b = 0;
-    for (const e of this.store.values()) b += e.grid.glyph.length * 7;
+    for (const e of this.store.values()) b += e.grid.px.length * 3;
     return b;
   }
 

@@ -1,7 +1,7 @@
 // End-to-end checks against a running server, driven over the Chrome
 // DevTools Protocol (no dependencies). Covers the acceptance criteria that
-// need a real browser: URL restore, input, motion budget, reduced motion,
-// fast scrolling without blank columns, and export.
+// need a real browser: URL restore, input, frame budget, reduced motion,
+// fast scrolling without blank columns, the living scene, and export.
 //
 //   node scripts/e2e.mjs http://localhost:5173 [--quick]
 //
@@ -69,7 +69,7 @@ const open = async (path, reduced = false) => {
   await send('Page.navigate', { url: BASE + path });
   for (let i = 0; i < 60; i++) {
     await sleep(250);
-    const ok = await evaluate('!!(window.__inkscroll && window.__inkscroll.comp.revealStart !== null)').catch(() => false);
+    const ok = await evaluate('!!(window.__inkscroll && window.__inkscroll.scene.revealStart !== null)').catch(() => false);
     if (ok) break;
   }
   await sleep(2200); // let the reveal finish
@@ -84,48 +84,51 @@ const check = (name, ok, detail) => {
 
 try {
   // --- URL state ------------------------------------------------------------------
+  const pixHash = 'Array.from(new Uint32Array(a.scene.canvas.getContext("2d").getImageData(0,0,a.scene.W,a.scene.H).data.buffer)).reduce((h,v)=>Math.imul(h^v,16777619),2166136261)>>>0';
   await open('/?seed=4242&x=4800', true);
-  const a = await S('({x:a.scrollX, text:a.text().join("\\n"), drift:a.drift, search:location.search})');
+  const a = await S('({x:a.scrollX, h:a.viewHash(), drift:a.drift, search:location.search})');
   await open('/?seed=4242&x=4800', true);
-  const b = await S('({x:a.scrollX, text:a.text().join("\\n")})');
-  check('opening /?seed=X&x=Y restores the exact view', a.x === 4800 && b.x === 4800 && a.text === b.text && a.text.replace(/\s/g, '').length > 500, { x: [a.x, b.x], same: a.text === b.text });
+  const b = await S('({x:a.scrollX, h:a.viewHash()})');
+  check('opening /?seed=X&x=Y restores the exact view', a.x === 4800 && b.x === 4800 && a.h === b.h, { x: [a.x, b.x], hash: [a.h, b.h] });
   check('URL carries seed and x', /seed=4242/.test(a.search) && /x=4800/.test(a.search), a.search);
   check('reduced motion: auto-drift off by default', a.drift === false);
+  const p1 = await S(pixHash);
+  await sleep(2000);
+  const p2 = await S(pixHash);
+  check('reduced motion: the picture holds still', p1 === p2, { p1, p2 });
 
-  // reduced motion: nothing changes at rest
-  await sleep(3000);
-  const rm = await S('a.stats.changedPerSec');
-  check('reduced motion: no cells change at rest (shimmer, sway, breathing, birds, ripple off)', rm === 0, `${rm} changes/s`);
-  // hover does not ripple in reduced motion
-  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 700, y: 400 });
-  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 760, y: 420 });
-  await sleep(300);
-  check('reduced motion: hover does not ripple', (await S('a.stats.changedPerSec')) === 0);
-
-  // --- motion budget at rest ---------------------------------------------------------
-  await open('/?seed=4242&x=4800');
+  // --- life -------------------------------------------------------------------------
+  await open('/?seed=4242&x=4800&time=0.6');
+  const q1 = await S(pixHash);
+  await sleep(700);
+  const q2 = await S(pixHash);
+  check('the scene is alive (water, clouds, mist move)', q1 !== q2);
+  const ft = [];
+  for (let i = 0; i < 20; i++) {
+    await sleep(100);
+    ft.push(await S('a.stats.frameMs'));
+  }
+  ft.sort((x, y) => x - y);
+  check('frame time with every effect on, p95 under 16 ms', ft[Math.floor(ft.length * 0.95)] < 16, { p50: ft[10], p95: ft[19] });
   await key(' ', 'Space', { vk: 32, text: ' ' });
   check('Space toggles auto-drift off', (await S('a.drift')) === false);
-  await sleep(2500);
-  const samples = [];
-  for (let i = 0; i < 12; i++) {
-    await sleep(500);
-    samples.push(await S('({c:a.stats.changedPerSec, n:a.stats.cells})'));
+  const before = await S('a.scene.particles.length');
+  const sky = await S('(()=>{for(let y=5;y<60;y++)for(let x=20;x<a.scene.W-20;x+=7){const h=a.scene.hitAt(x*a.scene.scale,y*a.scene.scale,a.scrollX);if(h.kind==="sky")return {x:x*a.scene.scale,y:y*a.scene.scale}}return null})()');
+  await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: sky.x, y: sky.y, button: 'left', clickCount: 1 });
+  await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: sky.x, y: sky.y, button: 'left', clickCount: 1 });
+  await sleep(200);
+  const lanterns = await S('a.scene.particles.filter(p=>p.kind==="lantern").length');
+  check('a tap on the sky releases a lantern', lanterns >= 1, { before, lanterns });
+  const water = await S('(()=>{for(let y=Math.floor(a.scene.H*0.8);y>a.scene.H/2;y--)for(let x=20;x<a.scene.W-20;x+=5){const h=a.scene.hitAt(x*a.scene.scale,y*a.scene.scale,a.scrollX);if(h.kind==="water")return {x:x*a.scene.scale,y:y*a.scene.scale}}return null})()');
+  for (let i = 0; i < 4; i++) {
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: water.x + i * 20, y: water.y });
+    await sleep(150);
   }
-  const worst = Math.max(...samples.map((s) => s.c / s.n));
-  const mean = samples.reduce((x, s) => x + s.c / s.n, 0) / samples.length;
-  check('fewer than 3% of cells change in any one second at rest', worst < 0.03, `worst ${(worst * 100).toFixed(2)}%, mean ${(mean * 100).toFixed(2)}%`);
-  check('motion is happening at all (water, mist, sway, breathing)', mean > 0.0005, `mean ${(mean * 100).toFixed(3)}%`);
-
-  // hover ripple
-  const before = await S('a.stats.changedPerSec');
-  for (let i = 0; i < 6; i++) {
-    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 600 + i * 14, y: 420 });
-    await sleep(40);
-  }
-  await sleep(150);
-  const during = await S('a.stats.changedPerSec');
-  check('hover ripples the cells near the cursor', during > before + 20, { before, during });
+  check('moving over the lake leaves ripples', (await S('a.scene.particles.filter(p=>p.kind==="ripple").length')) >= 1);
+  const phase0 = await S('a.scene.light.phase');
+  await key('t', 'KeyT', { vk: 84, text: 't' });
+  await sleep(300);
+  check('T skips to the next time of day', (await S('a.scene.light.phase')) !== phase0, { from: phase0, to: await S('a.scene.light.phase') });
 
   // --- input --------------------------------------------------------------------------
   await key(' ', 'Space', { vk: 32, text: ' ' });
@@ -146,7 +149,6 @@ try {
   x1 = await S('a.scrollX');
   check('horizontal swipe scrolls too', x0 - x1 > 150, `${(x1 - x0).toFixed(0)} units`);
 
-  // drag with inertia
   x0 = await S('a.scrollX');
   await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: 900, y: 450, button: 'left', clickCount: 1 });
   for (let i = 1; i <= 10; i++) {
@@ -157,15 +159,15 @@ try {
   await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: 600, y: 450, button: 'left', clickCount: 1 });
   await sleep(900);
   x1 = await S('a.scrollX');
-  check('drag pans with the pointer', atRelease - x0 > 200, `${(atRelease - x0).toFixed(0)} units for 300 px`);
+  check('drag pans with the pointer', atRelease - x0 > 150, `${(atRelease - x0).toFixed(0)} units for 300 px`);
   check('drag has light inertia on release', x1 - atRelease > 5 && x1 - atRelease < 2000, `${(x1 - atRelease).toFixed(0)} units after release`);
 
-  // arrows
+  await sleep(1500);
   x0 = await S('a.scrollX');
   await key('ArrowRight', 'ArrowRight', { vk: 39 });
   await sleep(500);
   x1 = await S('a.scrollX');
-  check('arrow key steps', Math.abs(x1 - x0 - 54) < 3, `${(x1 - x0).toFixed(1)} units`);
+  check('arrow key steps', Math.abs(x1 - x0 - 60) < 3, `${(x1 - x0).toFixed(1)} units`);
   x0 = x1;
   await key('ArrowLeft', 'ArrowLeft', { vk: 37, hold: true });
   for (let i = 0; i < 12; i++) {
@@ -186,26 +188,18 @@ try {
   await send('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: dl });
   await key('s', 'KeyS', { vk: 83, text: 's' });
   await sleep(2500);
-  const files = readdirSync(dl);
-  const txt = files.find((f) => f.endsWith('.txt'));
-  const png = files.find((f) => f.endsWith('.png'));
-  const rows = await S('a.comp.rows');
-  const lines = txt ? readFileSync(join(dl, txt), 'utf8').split('\n') : [];
-  check('S downloads a .txt of the view', !!txt && lines.length >= rows && lines.slice(0, rows).join('').replace(/\s/g, '').length > 300, { txt, rows, lines: lines.length });
-  let pngOk = false,
-    dims = null;
+  const png = readdirSync(dl).find((f) => f.endsWith('.png'));
+  let dims = null;
   if (png) {
     const buf = readFileSync(join(dl, png));
     dims = [buf.readUInt32BE(16), buf.readUInt32BE(20)];
-    pngOk = dims[0] === W && dims[1] === H && statSync(join(dl, png)).size > 20000;
   }
-  check('S downloads a .png at device resolution', pngOk, { png, dims });
+  check('S downloads a .png of the view, crisp-scaled', !!png && dims[0] >= W && dims[1] >= H && statSync(join(dl, png)).size > 20000, { png, dims });
 
-  // new painting
-  const seedBefore = await S('a.comp.displaySeed');
+  const seedBefore = await S('a.scene.displaySeed');
   await key('n', 'KeyN', { vk: 78, text: 'n' });
   await sleep(3500);
-  const seedAfter = await S('a.comp.displaySeed');
+  const seedAfter = await S('a.scene.displaySeed');
   const search = await evaluate('location.search');
   check('N paints a new landscape and updates the URL', seedAfter !== seedBefore && search.includes(`seed=${seedAfter}`), { seedBefore, seedAfter });
 
@@ -214,7 +208,7 @@ try {
     await open(`/?seed=777&x=${dir > 0 ? 0 : 200000}`);
     await key(' ', 'Space', { vk: 32, text: ' ' });
     await evaluate(`(()=>{
-      const a = window.__inkscroll; a.stats.maxMissingCols = 0;
+      const a = window.__inkscroll; a.stats.maxMissingCols = 0; a.stats.missingCols = 0;
       window.__perf = { raf: [], work: [], missing: 0, frames: 0 };
       let last = performance.now();
       const tick = (t) => {

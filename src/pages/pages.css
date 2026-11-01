@@ -37,3 +37,25 @@ canvas {
   border: 1px solid rgba(0, 0, 0, 0.15);
   background: #fff;
 }
+
+.stills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.still {
+  position: relative;
+  width: 640px;
+  max-width: 100%;
+  aspect-ratio: 640 / 300;
+  overflow: hidden;
+}
+.still canvas.scene {
+  position: static;
+  width: 100% !important;
+  height: auto !important;
+}
+html,
+body {
+  background: var(--paper);
+}

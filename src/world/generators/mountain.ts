@@ -2,10 +2,11 @@
 // outline, foot strokes, hatching, and self-vegetation (trees on the rim, top,
 // middle and base; houses, pagodas and rocks at the foot).
 
-import { asLine, asMat, poly, type Pt, stroke, texture } from '../draw';
+import { asLine, asMat, emitSprite, poly, type Pt, stroke, texture } from '../draw';
 import { noise } from '../noise';
 import { type Col, rgba, WHITE } from '../primitives';
 import { normRand, rand, randChoice } from '../rng';
+import { worldOptions } from '../options';
 import { arch02, arch03, arch04, transmissionTower01 } from './arch';
 import { rock } from './rock';
 import { tree01, tree02, tree03 } from './trees';
@@ -212,4 +213,15 @@ export function mountain(xoff: number, yoff: number, seed: number, args: { hei?:
       () => true,
     ),
   );
+
+  // Not in the original: some mountains carry a waterfall down their face,
+  // from a point on an inner layer to the foot. Drawn last, so it never
+  // shifts the random stream the original shapes use.
+  if (rand() < worldOptions.waterfallChance) {
+    const i = 1 + Math.floor(rand() * 3);
+    const j = Math.floor(ptlist[i].length * (0.3 + rand() * 0.4));
+    const [px, py] = ptlist[i][j];
+    const drop = -py;
+    if (drop > 60) emitSprite({ kind: 'waterfall', variant: Math.round(drop), x: xoff + px, y: yoff + py, flip: rand() < 0.5 });
+  }
 }

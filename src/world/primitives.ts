@@ -38,7 +38,7 @@ export interface Primitive {
   depth: number;
 }
 
-export type SpriteKind = 'figure' | 'boat' | 'pagoda' | 'pavilion' | 'label';
+export type SpriteKind = 'figure' | 'boat' | 'pagoda' | 'pavilion' | 'label' | 'waterfall' | 'smoke';
 
 /** Elements too small to survive rasterising at cell size are placed as hand-drawn sprites. */
 export interface SpritePlacement {

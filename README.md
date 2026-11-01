@@ -1,19 +1,24 @@
 # Inkscroll
 
-*A painting that never ends, written in text.*
+*A painting that never ends.*
 
-An endless Chinese landscape scroll (mountains, mist, water, pines,
-pavilions, boats and small travellers), drawn entirely in monospace
-characters. You can pan through it forever, and it breathes quietly while
-you watch.
+An endless pixel-art Chinese landscape in the blue-green style (青绿山水):
+azurite peaks over malachite slopes over ochre feet, rising out of a lake.
+You can pan through it forever. While you watch, the afternoon turns
+golden, the sun sets, and night comes with stars, a moon on the water, lit
+windows, fireflies and sky lanterns. There are waterfalls, sailing boats,
+crane flocks, chimney smoke, drifting mist and clouds, and the occasional
+rain shower.
 
 Landscape generator after [shan-shui-inf](https://github.com/LingDong-/shan-shui-inf)
 by Lingdong Huang (MIT; see `THIRD_PARTY_LICENSES.md`).
 
 - Live: https://ink-scroll.vercel.app
-- Five seeds side by side: `/seeds.html`
+- Five seeds at afternoon, sunset and night: `/seeds.html`
 - The port's geometry beside the original: `/compare.html?seed=123456`
-- Tuning panel and overlays: `/?debug=1`
+- Tuning panel with a time-of-day scrubber: `/?debug=1`
+
+The first version drew the same world in ASCII; it's tagged `ascii-v1`.
 
 ## Controls
 
@@ -21,146 +26,115 @@ by Lingdong Huang (MIT; see `THIRD_PARTY_LICENSES.md`).
 | --- | --- |
 | Wheel / trackpad | Scroll horizontally (vertical wheel maps to horizontal) |
 | Drag | Pan, with light inertia |
+| Tap the sky | Release a lantern |
+| Tap or hover the lake | Ripples |
 | ← / → | Step; hold to glide |
 | Space | Toggle auto-drift |
+| T | Skip to the next part of the day |
 | N | New painting |
-| S | Save the view as `.txt` and `.png` |
+| S | Save the view as a `.png` |
 
 `/?seed=123456&x=4800` restores an exact painting and position, and the URL
-follows you as you scroll. `?whimsy=1` brings back the original's "Pizza
-Hut" roof sign and transmission towers.
+follows you as you scroll. `&time=0.76` pins the time of day (0 is
+midnight, 0.5 noon, 0.76 sunset). `?whimsy=1` brings back the original's
+"Pizza Hut" sign and transmission towers.
 
 ## How it works
 
 ```
-worker:  planner -> generators -> rasterizer -> glyph mapper -> sprites
-main:    chunk cache -> compositor (+ motion overlays) -> two canvases
+worker:  planner -> generators -> rasterizer -> colouriser -> sprites   (palette indices)
+main:    sky + sun/moon/stars + clouds + far silhouettes
+         + background chunks + foreground chunks (graded palette)
+         + boats, birds, smoke, lanterns, fireflies, ripples, mist, rain, glow
+         -> one small image, scaled up with crisp pixels
 ```
 
 - **World (`src/world`).** A function-by-function TypeScript port of
-  shan-shui-inf's `index.html`, keeping the original names. The generators
-  emit typed primitives instead of SVG strings. Every plan chunk and every
-  placement gets its own seeded stream, `hash(seed, …)`, so a chunk's
-  contents never depend on scroll history. The original shared one global
-  `Math.random` and a global `planmtx`.
-- **Rasterizer (`src/render/rasterize.ts`).** A pure-TS scanline filler, not
-  an OffscreenCanvas: Canvas 2D anti-aliases edges, which corrupts
-  colour-coded material ids. This one also runs under Vitest. It samples
-  4×8 per cell; 4×4 dropped the original's 1–2 unit hairlines into dashes
-  because cells are 7×13. It writes ink, opacity, top material, occlusion
-  depth, and a **line map**.
-- **Line map.** The generators mark structural strokes (mountain and bank
-  outlines, trunks, eaves, far crests). Their centrelines are rasterized
-  separately and hidden by whatever is painted over them. This is what
-  makes ridges read as continuous `/ \ _ - ‾ |` runs. Edge detection on
-  ink alone can't tell a ridge from the hatching beside it; the first
-  renders were doubled, broken outlines in a gray field.
-- **Glyph mapper.** Ridges come from the line map, one glyph thick
-  (non-maximum suppression). Other edges must continue into a neighbour to
-  become contour glyphs. Everything else uses the tone ramp
-  `.',:;~-=+*x%#@` with error diffusion. Water, foliage and mist use their
-  own sets. Ink gets lighter with distance, and the three darkest tone
-  steps use the bold cut, like a brush pressed harder.
-- **Compositor.** A background canvas (far mountains and mist, at 0.6×
-  parallax) under a foreground canvas. Whole-cell scrolls shift the canvas
-  onto itself and paint only the new strip; the sub-cell remainder is a
-  CSS transform. Only cells whose glyph or tone changed are redrawn.
-- **Motion** (`src/motion`) runs on its own noise, independent of the
-  world seed: water shimmer, mist drift, foliage sway, breathing, boats,
-  birds, hover ripple, reveal. Rates live in `src/config.ts`.
+  shan-shui-inf, keeping its names. The generators emit typed primitives
+  instead of SVG. Every plan chunk and every placement has its own seeded
+  stream, so the world doesn't depend on scroll history. Two additions to
+  the original: waterfalls on some mountains, and chimney points on houses.
+  Both are drawn after the original's random calls, so they don't shift its
+  shapes.
+- **Rasterizer.** A pure-TS scanline filler at 2×2 samples per pixel. It
+  writes ink, opacity, top material, depth, mist, and a **line map** of the
+  outlines the generators mark (ridges, banks, trunks, eaves), which become
+  1-px ink outlines.
+- **Colouriser (`src/render/build.ts`).**
+  - Mountains take their hue from height above their own base (ochre →
+    green → teal → azurite), their shade from the hatching ink, and haze
+    from distance and mist.
+  - Empty space below the waterline is lake, with reflections mirrored
+    under every shore.
+  - Ordered dithering is used only on the seams between colour steps.
+    Dithering everything looked like a screen door.
+- **Palette (`src/pixel/palette.ts`).** Chunks store indices into about 170
+  colours. Each frame the scene grades the palette for the time of day
+  (`src/pixel/timeofday.ts`) and colour-cycles the water and waterfalls.
+  That's why the whole world can go from noon to night without rebuilding a
+  chunk.
+- **Scene (`src/render/scene.ts`).** Composites everything into a 480×300
+  image (at 1440×900) and scales it up 3× with `image-rendering: pixelated`.
+- **Sprites (`src/pixel/sprites.ts`).** Hand-drawn figures and boats.
+  Pagodas and pavilions are built from tiers, so each one is a little
+  different.
 
 ## Measured
 
 | Check | Target | Measured |
 | --- | --- | --- |
-| Chunk build in worker (mean, browser) | < 60 ms | 43–53 ms (max ~220 ms: a worker's first chunk) |
-| Main-thread frame work while fast-scrolling, p95 | < 16 ms | ~2 ms (headless Chrome) |
-| Blank columns during 60 s fast scroll each way (~1,400 units/s) | 0 | 0 |
-| Cells changing per second at rest | < 3% | ~0.3% mean, ~0.5% worst |
-| JS gzipped, main page incl. worker | < 80 KB | ~32 KB |
-| Chunk cache | < 30 MB | ~1.3 MB |
+| Chunk build in worker (mean) | < 60 ms | ~30–45 ms (foreground ~52 ms, background ~10 ms) |
+| Frame time, every effect on, p95 | < 16 ms | ~5 ms (headless Chrome, 1440×900) |
+| Blank columns during 60 s fast scroll each way | 0 | 0 |
+| JS gzipped, main page incl. worker | < 80 KB | ~35 KB |
 | Lighthouse accessibility | ≥ 95 | 100 (performance 100, best practices 100) |
 
-Frame timings come from headless Chrome on an M-series Mac. Headless Chrome
-paced rAF at 30 Hz during the long runs, so the figure is the work done per
-frame, not a measured 60 fps. The PRD asks for the Performance panel on a
-MacBook Air; that's a manual check.
+`node scripts/e2e.mjs <url>` runs these checks and the input, URL, export
+and reduced-motion checks in headless Chrome.
 
 ## Develop
 
 ```sh
 npm install
-npm run dev                         # http://localhost:5173
-npm test                            # Vitest: determinism, whimsy, rasterizer, mapper
-node scripts/e2e.mjs http://localhost:5173 [--quick]   # browser acceptance checks over CDP
-npm run ascii -- 123456 0 2         # print chunks as text in the terminal
+npm run dev
+npm test                                   # Vitest: determinism, whimsy
+node scripts/e2e.mjs http://localhost:5173 [--quick]
 ```
 
 ## Decisions
 
-**Name: Inkscroll** (`ink-scroll.vercel.app`; `inkscroll.vercel.app` already belongs to an unrelated site). "Ink and Characters" was the
-working title. The product is an endless scroll in ink, and one short word
-makes a clean repo, domain and seal.
+- **Pixel art instead of ASCII,** at Brandon's request. The world, the
+  determinism, the controls, the URL state and the seal carried over; the
+  renderer was replaced. The PRD's ASCII-specific rules (character sets,
+  under 3% of cells changing a second, `.txt` export) no longer apply. The
+  goal now is that the scene is always visibly alive.
+- **Blue-green landscape style** rather than ink grays. It's a real
+  tradition of Chinese landscape painting, and it gives a limited, coherent
+  palette, which is what makes pixel art read.
+- **A day lasts 4 minutes and a visit starts in the golden afternoon,** so
+  sunset arrives within a minute and night within two. `T` skips ahead.
+- **Integer pixel scale,** chosen so about 300 rows fill the height. Short
+  screens crop mostly sky; tall screens get more sky.
+- **Reduced motion:** the light holds at afternoon and animation time
+  stands still (mist, water, clouds, particles). There's no drift, reveal,
+  birds or rain. Scrolling and `T` still work.
+- **Name: Inkscroll,** at `ink-scroll.vercel.app` (`inkscroll.vercel.app`
+  belongs to an unrelated site).
 
-**Font: JetBrains Mono**, subset to the glyphs in use (8.8 KB regular,
-8.9 KB bold). IBM Plex Mono was the PRD's starting point, but it has no `‾`,
-which the contour set needs to make a shallow ridge read as `_-‾`. Neither
-font has `♣`, so foliage is `' ^ * ¥ % &`. Berkeley Mono is commercial and
-wasn't considered.
+## Open questions from the PRD, answered for this version
 
-**Interface extensions.** `Primitive` gains `alpha`: the original's colours
-are a gray and an alpha, and one `ink` number can't hold an opaque light
-gray. It also gains a third kind, `'line'`, for the line map. `ChunkGrid`
-also carries `ink`, `depth` (so moving boats hide behind nearer hills) and
-`flags`.
-
-**Sprites.** Figures, boats, pagodas (`arch03`) and the small pavilion
-(`arch04`) are hand-drawn, at least three variants each. Houses (`arch02`)
-and terrace pavilions (`arch01`) are wider than six cells and keep their
-geometry. Pagoda sprites run seven to ten rows, more than the PRD's two to
-five, because a pagoda is a tall element, not a small one. Matching the
-generator's footprint served the picture better.
-
-**Mist** bands sit at four foreground depths and one background depth.
-They're semi-opaque paper, so a farther mountain's foot dissolves before a
-nearer one starts.
-
-**Reduced motion** turns off what the PRD lists (shimmer, sway, breathing,
-birds, ripple, scramble reveal). It also turns off boat bobbing and mist
-drift, because those are motion too. Drift starts off; scrolling still
-works.
-
-**Short screens** (a phone on its side) can't show all 70 world rows, so
-40% of the crop comes from the sky and 60% from the open water at the
-bottom. The peaks stay in view.
-
-## Open questions, answered
-
-- **Name and domain.** Inkscroll, at ink-scroll.vercel.app (above). A custom
-  domain is Brandon's call.
-- **Standalone or a section/background of another site?** Standalone, so
-  the bar and keyboard shortcuts exist. To use it as a background later:
-  hide `.bar` and `.seal`, and skip the key handlers in `main.ts`.
-- **Dark mode?** No: paper only, for a single strong identity. Pale ink on
-  black reads as a terminal, which is what this tries hardest not to look
-  like. The colours are CSS tokens, so adding it later is cheap.
-- **Should hovering a figure, boat or pavilion do more than ripple?** Not in
-  v1. A poem line in the bar is a second UI surface, and the PRD's rule is
-  that the painting is the page. Revisit after the taste review.
-- **Seal: seed number, generated name, or fixed signature?** The seed
-  number. It's the one fact worth carrying away: it reproduces the
-  painting, and it matches the URL and the export filenames.
-- **Vertical-scroll variant (hanging scroll)?** Worth a v2. The generators
-  are horizontal-planner-shaped, so it's a new planner, not a flag. Out of
-  scope here.
+- **Standalone or a section of another site?** Standalone, so the bar and
+  shortcuts exist.
+- **Dark mode?** The day–night cycle is the dark mode.
+- **Hovering a figure, boat or pavilion?** Tapping the sky releases a
+  lantern and the lake ripples under the cursor. Figures don't do anything
+  yet.
+- **Seal?** The seed number, which reproduces the painting.
+- **Vertical hanging scroll?** Still a v2 idea; it needs a new planner.
 
 ## Not verified here
 
-- **Phase 2 taste gate.** "Five seeds reviewed side by side by Brandon" is
-  his to do: `/seeds.html`.
-- **Real devices.** Checked at real CSS widths in headless Chrome (390×844,
-  844×390, 1440×900). Not run in Safari, Firefox or on an actual iPhone.
-  The code avoids OffscreenCanvas and uses module workers, which current
-  Safari (15+) and Firefox (114+) support.
-- **Performance-panel trace on a MacBook Air.** Not run; the figures above
-  come from page-side frame timing in headless Chrome.
+- Safari, Firefox and a real iPhone. Checked at real CSS widths in headless
+  Chrome only.
+- A Performance-panel trace on a MacBook Air.
+- Taste. Brandon's call, starting at `/seeds.html`.
